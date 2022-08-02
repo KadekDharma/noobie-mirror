@@ -530,8 +530,8 @@ def sharerpw(url: str, forced_login=False) -> str:
         client = cloudscraper.create_scraper(allow_brotli=False)
         
         client.cookies.update({
-            "XSRF-TOKEN": "eyJpdiI6IkVsWHBXVTM1QW1maXd2Ykh5d1RoT1E9PSIsInZhbHVlIjoiWFZ1ZGF5OUJTa25LTjhRVHRKWGg4XC9cL2g4aWt2WEFMbGFFRTNYRDBlUDhKMjRNb3Q3QVMwT2dNZGM0aEpXUHZyIiwibWFjIjoiYWYwM2RhM2NkZjg4NmI4ZTM3MzFhYjRmMDkxMjljYTIyMzBkNDIzNWVhMjViZTNkYWMyY2UzN2U5ZDlhYzk3NyJ9" SHARERPW_XSRF_TOKEN
-            "laravel_session": "eyJpdiI6Ikd0NyswODM3SEgxdEtOVUpkdmN2TVE9PSIsInZhbHVlIjoiR2RUM2hCTkgwaVo5RStlY25yeUw5bkhiVzJzTk1PdWdyM29lREMzdTFcL3lsdGhCcHh1UWRzNDJLWGdmVUN0MDMiLCJtYWMiOiI5NDk1NDNkNjMyMTlkODZhM2RkNTE2ZTgwOWY0OTcxNjM4ODY5NDEwMTEwOTE2NjUwYThlODNmZTdiZTczZDY2In0%3D" SHARERPW_LARAVEL_SESSION
+            "XSRF-TOKEN": SHARERPW_XSRF_TOKEN,
+            "laravel_session" : SHARERPW_LARAVEL_SESSION
         })
         
         res = client.get(url)
