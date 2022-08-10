@@ -240,21 +240,22 @@ def main():
                 else:
                     msg = '♻️ <b>Bot Restarted!</b>'
                 for tag, links in data.items():
-                     for index, link in enumerate(links, start=1):
-                         msg += f"\n\n⚠️ {tag} <b>Proses <a href='{link}'><u>Mirror Kamu</u></a> dihentikan!</b>"
-                         if len(msg.encode()) > 4000:
-                             if '♻️ <b>Restarted successfully!</b>' in msg and cid == chat_id:
-                                 bot.editMessageText(msg, chat_id, msg_id, parse_mode='HTMl', disable_web_page_preview=True)
-                                 osremove(".restartmsg")
-                             else:
-                                 try:
-                                     bot.sendMessage(cid, msg, 'HTML', disable_web_page_preview=True)
-                                 except Exception as e:
-                                     LOGGER.error(e)
-                             msg = ''
+                    msg += f"\n\n⚠️ {tag} <b>{len(links)} Proses mirror kamu dibatalkan</b>"
+                    for index, link in enumerate(links, start=1):
+                        msg += f"\n📍 <a href='{link}'><u>Proses ke {index}</u></a>"
+                        if len(msg.encode()) > 4000:
+                            if '♻️ <b>Restarted successfully!</b>' in msg and cid == chat_id:
+                                bot.editMessageText(msg, chat_id, msg_id, parse_mode='HTMl', disable_web_page_preview=True)
+                                osremove(".restartmsg")
+                            else:
+                                try:
+                                    bot.sendMessage(cid, msg, 'HTML', disable_web_page_preview=True)
+                                except Exception as e:
+                                    LOGGER.error(e)
+                            msg = ''
                 if '♻️ <b>Restarted successfully!</b>' in msg and cid == chat_id:
-                     bot.editMessageText(msg, chat_id, msg_id, parse_mode='HTMl', disable_web_page_preview=True)
-                     osremove(".restartmsg")
+                    bot.editMessageText(msg, chat_id, msg_id, parse_mode='HTMl', disable_web_page_preview=True)
+                    osremove(".restartmsg")
                 else:
                     try:
                         bot.sendMessage(cid, msg, 'HTML', disable_web_page_preview=True)

@@ -137,12 +137,17 @@ def zippy_share(url: str) -> str:
     js_script = str(js_script)
 
     try:
-        mtk = eval(re.findall(r"\+.\((.*?)\).\+", js_script)[0])
+        mtk = eval(re.findall(r"\+\((.*?).\+", js_script)[0] + "+ 11")
         uri1 = re.findall(r".href.=.\"/(.*?)/\"", js_script)[0]
-        uri2 = re.findall(r"\+.\"/(.*?)\"", js_script)[0]
-    except Exception as err:
-        LOGGER.error(err)
-        raise DirectDownloadLinkException("ERROR: Tidak dapat mengambil direct link")
+        uri2 = re.findall(r"\)\+\"/(.*?)\"", js_script)[0]
+    except:
+        try:
+            mtk = eval(re.findall(r"\+.\((.*?)\).\+", js_script)[0])
+            uri1 = re.findall(r".href.=.\"/(.*?)/\"", js_script)[0]
+            uri2 = re.findall(r"\+.\"/(.*?)\"", js_script)[0]
+        except Exception as err:
+            LOGGER.error(err)
+            raise DirectDownloadLinkException("ERROR: Tidak dapat mengambil direct link")
     dl_url = f"{base_url}/{uri1}/{int(mtk)}/{uri2}"
     return dl_url
 
@@ -358,7 +363,6 @@ def fichier(link: str) -> str:
         elif "protect access" in str(str_2).lower():
             raise DirectDownloadLinkException(f"ERROR: Link ini memerlukan password!\n\n- Tambahkan tanda <b>::</b> setelah link dan ketik password setelah tanda tersebut.\n\n<b>Contoh:</b>\n<code>/{BotCommands.MirrorCommand} https://1fichier.com/?smmtd8twfpm66awbqz04::love you</code>\n\n* Tanpa spasi diantara link dan password <b>::</b>\n* Tapi password bisa memakai spasi")
         else:
-            print(str_2)
             raise DirectDownloadLinkException("ERROR: Gagal ketika generate direct link 1fichier!")
     elif len(soup.find_all("div", {"class": "ct_warn"})) == 4:
         str_1 = soup.find_all("div", {"class": "ct_warn"})[-2]
