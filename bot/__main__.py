@@ -58,7 +58,7 @@ def restart(update, context):
         Interval.clear()
     alive.kill()
     clean_all()
-    srun(["pkill", "-9", "-f", "gunicorn|chrome|firefox|megasdkrest"])
+    srun(["pkill", "-9", "-f", "gunicorn|chrome|firefox|megasdkrest|opera"])
     srun(["python3", "update.py"])
     with open(".restartmsg", "w") as f:
         f.truncate(0)
@@ -68,9 +68,10 @@ def restart(update, context):
 
 def ping(update, context):
     start_time = int(round(time() * 1000))
-    reply = sendMessage("Starting Ping", context.bot, update.message)
+    reply = sendMessage("Starting Ping...", context.bot, update.message)
     end_time = int(round(time() * 1000))
-    editMessage(f'{end_time - start_time} ms', reply)
+    editMessage(f'🏓 <b>Pong!</b> {end_time - start_time} ms', reply)
+    Thread(target=auto_delete_message, args=(context.bot, update.message, reply)).start()
 
 
 def log(update, context):
@@ -138,7 +139,6 @@ botcmds = [
         (f'{BotCommands.QbUnzipMirrorCommand[0]}','Mirror torrent menggunakan qBittorrent dan ekstrak file'),
         (f'{BotCommands.YtdlCommand[0]}','Mirror YouTube link'),
         (f'{BotCommands.YtdlZipCommand[0]}','Mirror YouTube link lalu arsip ke zip'),
-        (f'{BotCommands.CloneCommand[0]}','Copy file/folder to Drive'),
         (f'{BotCommands.LeechCommand[0]}','Upload file ke telegram'),
         (f'{BotCommands.ZipLeechCommand[0]}','Arsip file ke zip lalu Upload ke telegram'),
         (f'{BotCommands.UnzipLeechCommand[0]}','Ekstrak file lalu Upload file ke telegram'),
@@ -147,6 +147,7 @@ botcmds = [
         (f'{BotCommands.QbUnzipLeechCommand[0]}','Ekstrak torrent lalu Upload ke telegram menggunakan qBittorrent'),
         (f'{BotCommands.YtdlLeechCommand[0]}','Upload YouTube video ke telegram'),
         (f'{BotCommands.YtdlZipLeechCommand[0]}','Arsip ke zip YouTube video lalu upload ke telegram'),
+        (f'{BotCommands.CloneCommand}','Copy file/folder to Drive'),
         (f'{BotCommands.CountCommand}','Menghitung file/folder dari Drive'),
         (f'{BotCommands.DeleteCommand}','Menghapus file/folder dari Drive'),
         (f'{BotCommands.CancelMirror}','Cancel sebuah task'),
