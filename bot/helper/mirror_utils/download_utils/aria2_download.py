@@ -1,7 +1,7 @@
 from time import sleep, time
 from os import remove, path as ospath
 
-from bot import aria2, download_dict_lock, download_dict, STOP_DUPLICATE, SEED_LIMIT,TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT, LOGGER, BASE_URL
+from bot import aria2, download_dict_lock, download_dict, STOP_DUPLICATE, LEECH_LIMIT, SEED_LIMIT, TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT, LOGGER, BASE_URL
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.ext_utils.bot_utils import is_magnet, getDownloadByGid, new_thread, get_readable_file_size, bt_selection_buttons
 from bot.helper.mirror_utils.status_utils.aria_download_status import AriaDownloadStatus
@@ -29,46 +29,50 @@ def __onDownloadStarted(api, gid):
     else:
         LOGGER.info(f'onDownloadStarted: {download.name} - Gid: {gid}')
     try:
-        if any([STOP_DUPLICATE, TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT]):
+        if any([STOP_DUPLICATE, TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT, LEECH_LIMIT]):
             sleep(1)
             if dl := getDownloadByGid(gid):
                 listener = dl.listener()
+                if listener.select:
+                    return
                 download = api.get_download(gid)
+                if not download.is_torrent:
+                    sleep(3)
+                    download = download.live
                 LOGGER.info('Checking File/Folder Size...')
                 limit = None
                 size = download.total_length
                 arch = any([listener.isZip, listener.extract])
-                if ZIP_UNZIP_LIMIT is not None and arch:
+                if listener.isLeech and LEECH_LIMIT:
+                    mssg = f'Leech limit {LEECH_LIMIT}GB'
+                    limit = LEECH_LIMIT
+                elif arch and ZIP_UNZIP_LIMIT:
                     mssg = f'Zip/Unzip limit {ZIP_UNZIP_LIMIT}GB'
                     limit = ZIP_UNZIP_LIMIT
-                elif TORRENT_DIRECT_LIMIT is not None:
+                elif TORRENT_DIRECT_LIMIT:
                     mssg = f'Torrent/Direct limit {TORRENT_DIRECT_LIMIT}GB'
                     limit = TORRENT_DIRECT_LIMIT
-                if limit is not None:
+                if limit:
                     if size > limit * 1024**3:
                         listener.onDownloadError(f'{mssg}. Ukuran file/folder kamu adalah {get_readable_file_size(size)}')
                         api.remove([download], force=True, files=True)
                         return
-                if listener.isLeech or listener.select:
-                    return
-                if not download.is_torrent:
-                    sleep(3)
-                    download = download.live
-                LOGGER.info('Checking File/Folder if already in Drive...')
-                sname = download.name
-                if listener.isZip:
-                    sname = sname + ".zip"
-                elif listener.extract:
-                    try:
-                        sname = get_base_name(sname)
-                    except:
-                        sname = None
-                if sname is not None:
-                    cap, f_name = GoogleDriveHelper().drive_list(sname, True)
-                    if cap:
-                        listener.onDownloadError(f'<code>{sname}</code> <b><u>sudah ada di Drive</u></b>', listfile=f_name)
-                        api.remove([download], force=True, files=True)
-                        return
+                if not listener.isLeech:
+                    LOGGER.info('Checking File/Folder if already in Drive...')
+                    sname = download.name
+                    if listener.isZip:
+                        sname = sname + ".zip"
+                    elif listener.extract:
+                        try:
+                            sname = get_base_name(sname)
+                        except:
+                            sname = None
+                    if sname:
+                        cap, f_name = GoogleDriveHelper().drive_list(sname, True)
+                        if cap:
+                            listener.onDownloadError(f'<code>{sname}</code> <b><u>sudah ada di Drive</u></b>', listfile=f_name)
+                            api.remove([download], force=True, files=True)
+                            return
     except Exception as e:
         LOGGER.error(f"{e} onDownloadStart: {gid} check duplicate and size check didn't pass")
 
@@ -90,12 +94,10 @@ def __onDownloadComplete(api, gid):
                 sendMarkup(msg, listener.bot, listener.message, SBUTTONS)
     elif download.is_torrent:
         if dl := getDownloadByGid(gid):
-            if hasattr(dl, 'listener'):
-                listener = dl.listener()
-                if hasattr(listener, 'uploaded'):
-                    LOGGER.info(f"Cancelling Seed: {download.name} onDownloadComplete")
-                    listener.onUploadError(f"Seeding stopped with Ratio: {dl.ratio()} and Time: {dl.seeding_time()}")
-                    api.remove([download], force=True, files=True)
+            if hasattr(dl, 'listener') and dl.seeding:
+                LOGGER.info(f"Cancelling Seed: {download.name} onDownloadComplete")
+                dl.listener().onUploadError(f"Seeding stopped with Ratio: {dl.ratio()} and Time: {dl.seeding_time()}")
+                api.remove([download], force=True, files=True)
     else:
         LOGGER.info(f"onDownloadComplete: {download.name} - Gid: {gid}")
         if dl := getDownloadByGid(gid):
@@ -126,7 +128,10 @@ def __onBtDownloadComplete(api, gid):
             except Exception as e:
                 LOGGER.error(f'{e} You are not able to seed because you added global option seed-time=0 without adding specific seed_time for this torrent')
         else:
-            api.client.force_pause(gid)
+            try:
+                api.client.force_pause(gid)
+            except Exception as e:
+                LOGGER.error(f"{e} GID: {gid}" )
         listener.onDownloadComplete()
         if listener.seed:
             if SEED_LIMIT is not None:
@@ -140,13 +145,6 @@ def __onBtDownloadComplete(api, gid):
                         listener.onUploadError(f"Seeding torrent limit {SEED_LIMIT} GB. Ukuran File/folder yang akan di seeding adalah {get_readable_file_size(size)}")
                         api.remove([download], force=True, files=True)
                         return
-            with download_dict_lock:
-                if listener.uid not in download_dict:
-                    api.remove([download], force=True, files=True)
-                    return
-                download_dict[listener.uid] = AriaDownloadStatus(gid, listener)
-                download_dict[listener.uid].start_time = seed_start_time
-            LOGGER.info(f"Seeding started: {download.name} - Gid: {gid}")
             download = download.live
             if download.is_complete:
                 if dl := getDownloadByGid(gid):
@@ -154,7 +152,13 @@ def __onBtDownloadComplete(api, gid):
                     listener.onUploadError(f"Seeding stopped with Ratio: {dl.ratio()} and Time: {dl.seeding_time()}")
                     api.remove([download], force=True, files=True)
             else:
-                listener.uploaded = True
+                with download_dict_lock:
+                    if listener.uid not in download_dict:
+                        api.remove([download], force=True, files=True)
+                        return
+                    download_dict[listener.uid] = AriaDownloadStatus(gid, listener, True)
+                    download_dict[listener.uid].start_time = seed_start_time
+                LOGGER.info(f"Seeding started: {download.name} - Gid: {gid}")
                 update_all_messages()
         else:
             api.remove([download], force=True, files=True)
